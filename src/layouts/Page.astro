@@ -1,0 +1,48 @@
+---
+import type { ImageMetadata } from 'astro';
+import BaseHead from '../components/BaseHead.astro';
+
+interface Props {
+	title: string;
+	description: string;
+	image?: ImageMetadata;
+	/** A quiet link above the content, e.g. back to the writing index. Omit on the home page. */
+	back?: { href: string; label: string };
+}
+
+const { title, description, image, back } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<BaseHead title={title} description={description} image={image} />
+		<slot name="head" />
+	</head>
+	<body>
+		<main>
+			{
+				back && (
+					<nav class="back">
+						<a href={back.href}>&larr; {back.label}</a>
+					</nav>
+				)
+			}
+			<slot />
+		</main>
+	</body>
+</html>
+
+<style>
+	.back {
+		padding-top: 28px;
+		font: 500 13.5px/1 var(--sans);
+	}
+	.back a {
+		color: var(--muted);
+		text-decoration: none;
+	}
+	.back a:hover {
+		color: var(--accent);
+	}
+</style>

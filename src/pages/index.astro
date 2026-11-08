@@ -1,0 +1,37 @@
+---
+import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import Page from '../layouts/Page.astro';
+---
+
+<!-- Intentionally blank for now. -->
+<Page title={SITE_TITLE} description={SITE_DESCRIPTION}>
+	<section>
+		<h1>{SITE_TITLE}</h1>
+		<nav>
+			<a href="/writing/">Writing</a>
+			<a href="/about/">About</a>
+		</nav>
+	</section>
+</Page>
+
+<style>
+	section {
+		padding-top: 96px;
+	}
+	nav {
+		display: flex;
+		gap: 24px;
+		font: 500 15px/1 var(--sans);
+	}
+	nav a {
+		text-decoration: none;
+	}
+	nav a:hover {
+		text-decoration: underline;
+	}
+	@media (max-width: 600px) {
+		section {
+			padding-top: 56px;
+		}
+	}
+</style>

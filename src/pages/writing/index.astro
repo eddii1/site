@@ -1,0 +1,49 @@
+---
+import PostList from '../../components/PostList.astro';
+import { SITE_TITLE } from '../../consts';
+import Page from '../../layouts/Page.astro';
+import { getPosts } from '../../lib/posts';
+
+const posts = await getPosts();
+---
+
+<Page
+	title={`Writing - ${SITE_TITLE}`}
+	description={`Write-ups of things ${SITE_TITLE} has built.`}
+	back={{ href: '/', label: SITE_TITLE }}
+>
+	<header>
+		<h1>Writing</h1>
+		<p class="rss"><a href="/rss.xml">RSS feed</a></p>
+	</header>
+	<PostList posts={posts} />
+</Page>
+
+<style>
+	header {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 16px;
+		padding: 48px 0 12px;
+	}
+	h1 {
+		margin: 0;
+	}
+	.rss {
+		margin: 0;
+		font: 500 13.5px/1 var(--sans);
+	}
+	.rss a {
+		color: var(--muted);
+		text-decoration: none;
+	}
+	.rss a:hover {
+		color: var(--accent);
+	}
+	@media (max-width: 600px) {
+		header {
+			padding-top: 32px;
+		}
+	}
+</style>
