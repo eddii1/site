@@ -25,15 +25,6 @@ import LatencyChart from '../../components/writing/seek/LatencyChart.astro';
 	- Over two days of real flights the drone **found 5 targets that I confirmed**. It also proposed things that were not the target; Grok's own second look caught some, I caught the rest. This was a hackathon, not a benchmark: [Did it work?](#did-it-work) has the honest numbers.
 </div>
 
-<Stats
-	items={[
-		{ value: '2.9 s', label: 'median Grok decision, 186 on real flights' },
-		{ value: '47 s', label: 'the very first decision, which gave up' },
-		{ value: '0.16 s', label: 'depth estimate per camera frame' },
-		{ value: '5', label: 'finds confirmed by a human, real flights' },
-	]}
-/>
-
 ## The setup
 
 <figure>
