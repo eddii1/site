@@ -8,6 +8,8 @@ import { defineConfig, fontProviders } from 'astro/config';
 export default defineConfig({
 	site: 'https://eduardtudoran.com',
 	integrations: [mdx(), sitemap()],
+	// The bio moved to the home page.
+	redirects: { '/about': '/' },
 	markdown: {
 		// Light theme so code blocks sit on the same pale panel as the rest of the page.
 		shikiConfig: { theme: 'github-light' },

@@ -8,9 +8,11 @@ interface Props {
 	image?: ImageMetadata;
 	/** A quiet link above the content, e.g. back to the writing index. Omit on the home page. */
 	back?: { href: string; label: string };
+	/** Lets a page restyle the whole document, e.g. the home page's own theme. */
+	bodyClass?: string;
 }
 
-const { title, description, image, back } = Astro.props;
+const { title, description, image, back, bodyClass } = Astro.props;
 ---
 
 <!doctype html>
@@ -19,7 +21,7 @@ const { title, description, image, back } = Astro.props;
 		<BaseHead title={title} description={description} image={image} />
 		<slot name="head" />
 	</head>
-	<body>
+	<body class={bodyClass}>
 		<main>
 			{
 				back && (

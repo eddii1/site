@@ -1,0 +1,155 @@
+---
+/** A grid of screenshots; click one to see it full size. */
+interface Item {
+	src: string;
+	alt: string;
+	caption: string;
+	/** Optional verdict badge on the image. */
+	verdict?: 'confirmed' | 'rejected';
+}
+
+interface Props {
+	items: Item[];
+	cols?: 2 | 3 | 4;
+	wide?: boolean;
+}
+
+const { items, cols = 3, wide = false } = Astro.props;
+---
+
+<div class:list={['gallery', { bleed: wide }]} style={`--cols: ${cols}`} data-gallery>
+	{
+		items.map((item) => (
+			<figure>
+				<button type="button" class="shot" data-full={item.src} data-caption={item.caption}>
+					<img src={item.src} alt={item.alt} loading="lazy" decoding="async" />
+					{item.verdict && (
+						<span class:list={['verdict', item.verdict]}>
+							{item.verdict === 'confirmed' ? 'Confirmed' : 'Rejected'}
+						</span>
+					)}
+				</button>
+				<figcaption>{item.caption}</figcaption>
+			</figure>
+		))
+	}
+	<dialog class="lightbox" aria-label="Enlarged image">
+		<img alt="" />
+		<p></p>
+	</dialog>
+</div>
+
+<style>
+	.gallery {
+		display: grid;
+		grid-template-columns: repeat(var(--cols), 1fr);
+		gap: 14px;
+		margin: 28px 0 34px;
+	}
+	.bleed {
+		--bleed: 1000px;
+	}
+	figure {
+		margin: 0;
+	}
+	.shot {
+		position: relative;
+		display: block;
+		width: 100%;
+		padding: 0;
+		border: 0;
+		border-radius: 10px;
+		overflow: hidden;
+		background: #eee;
+		aspect-ratio: 4 / 3;
+		cursor: zoom-in;
+	}
+	.shot img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		border-radius: 0;
+		transition: transform 0.25s ease;
+	}
+	.shot:hover img {
+		transform: scale(1.03);
+	}
+	.verdict {
+		position: absolute;
+		top: 8px;
+		left: 8px;
+		padding: 4px 8px 4px 20px;
+		border-radius: 4px;
+		background: rgba(255, 255, 255, 0.94);
+		color: var(--ink);
+		font: 600 11px/1 var(--sans);
+		letter-spacing: 0.03em;
+	}
+	.verdict::before {
+		content: '';
+		position: absolute;
+		left: 8px;
+		top: 50%;
+		width: 7px;
+		height: 7px;
+		margin-top: -3.5px;
+		border-radius: 50%;
+	}
+	.confirmed::before {
+		background: var(--good);
+	}
+	.rejected::before {
+		background: var(--bad);
+	}
+	figcaption {
+		margin-top: 8px;
+		font: 400 13px/1.45 var(--sans);
+	}
+	.lightbox {
+		max-width: min(94vw, 1100px);
+		padding: 0;
+		border: 0;
+		border-radius: 10px;
+		background: transparent;
+	}
+	.lightbox::backdrop {
+		background: rgba(12, 12, 14, 0.9);
+	}
+	.lightbox img {
+		display: block;
+		max-width: 100%;
+		max-height: 82vh;
+		border-radius: 8px;
+	}
+	.lightbox p {
+		margin: 12px 0 0;
+		text-align: center;
+		color: #e8eaed;
+		font: 400 14px/1.5 var(--sans);
+	}
+	@media (max-width: 600px) {
+		.gallery {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+</style>
+
+<script>
+	for (const gallery of document.querySelectorAll<HTMLElement>('[data-gallery]')) {
+		const dialog = gallery.querySelector('dialog')!;
+		const img = dialog.querySelector('img')!;
+		const text = dialog.querySelector('p')!;
+		gallery.addEventListener('click', (event) => {
+			const shot = (event.target as Element).closest<HTMLButtonElement>('.shot');
+			if (shot) {
+				img.src = shot.dataset.full!;
+				img.alt = shot.dataset.caption!;
+				text.textContent = shot.dataset.caption!;
+				dialog.showModal();
+			}
+		});
+		// Any click on the open dialog closes it; Escape is handled by the browser.
+		dialog.addEventListener('click', () => dialog.close());
+	}
+</script>

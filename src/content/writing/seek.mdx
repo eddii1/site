@@ -1,0 +1,210 @@
+---
+title: 'Teaching a toy drone to scan rooms on its own'
+description: 'A small DJI drone with one camera and no depth sensor, searching a room for anything you describe in plain words. Grok picks every move from a map the drone builds as it flies; code decides whether the move is safe.'
+pubDate: '2026-11-05'
+draft: false
+meta:
+  Event: 'Grok Hackathon, Pavia'
+  Model: 'Grok 4.20, non-reasoning'
+---
+
+import Clip from '../../components/writing/Clip.astro';
+import Gallery from '../../components/writing/Gallery.astro';
+import Stats from '../../components/writing/Stats.astro';
+import LatencyChart from '../../components/writing/seek/LatencyChart.astro';
+
+<Clip src="/writing/seek/hero" width={960} height={622} wide label="The SEEK dashboard during a run: drone camera, rover camera, the live 3D map and each agent's decision graph.">
+	SEEK during a live run: a drone and a ground rover search the same room, each with its own Grok agent, its own camera and its own map.
+</Clip>
+
+<div class="tldr">
+	<span class="label">TL;DR</span>
+	- At the Grok Hackathon in Pavia, our team got a small classroom drone with one forward camera and no depth sensor to **search a room on its own** for something you describe in plain words.
+	- **Grok never steers.** It reads a map the drone builds as it flies, picks one move, and code checks that move against the map before the drone flies it.
+	- Two pivots made it work. A **depth model on every frame** instead of 3D reconstruction gave the drone a memory of the room. A **fast non-reasoning model** took a decision from **47 s** (that first decision gave up) to a median of **2.9 s** on real flights.
+	- Over two days of real flights the drone **found 5 targets that I confirmed**. It also proposed things that were not the target; Grok's own second look caught some, I caught the rest. This was a hackathon, not a benchmark: [Did it work?](#did-it-work) has the honest numbers.
+</div>
+
+<Stats
+	items={[
+		{ value: '2.9 s', label: 'median Grok decision, 186 on real flights' },
+		{ value: '47 s', label: 'the very first decision, which gave up' },
+		{ value: '0.16 s', label: 'depth estimate per camera frame' },
+		{ value: '5', label: 'finds confirmed by a human, real flights' },
+	]}
+/>
+
+## The setup
+
+<figure>
+	<img src="/writing/seek/hardware.jpg" alt="The DJI RoboMaster TT drone in its box" width="1200" height="744" loading="lazy" />
+	<figcaption>The DJI RoboMaster TT: a Tello with an extension board, a forward distance sensor and a small LED matrix.</figcaption>
+</figure>
+
+The hackathon gave us a few DJI RoboMaster TT drones, the "Tello Talent" edition of DJI's classroom drone. Old, but gold. You talk to it over Wi-Fi with plain text commands over UDP (`takeoff`, `forward 50`, `cw 90`, `land`) and it streams 960×720 video back. That is about all it gives you:
+
+- **No position.** The drone does not know where it is in the room. It only knows what it was told to do.
+- **No depth.** One forward camera. The distance sensor on the extension board answers sometimes.
+- **No memory.** Ask it to search a room and it will happily circle the same corner forever, because nothing tells it it has been there.
+
+Our goal was a drone you could give a mission like *"find the coherency sign, explore the corners"*, and that would go and find it. The hard part was not the language model. It was giving the drone a memory of the place, so the model had something to reason about.
+
+## Pivot 1: from photos to a live map
+
+### What did not work
+
+We tried three ways to give the drone a sense of the room before one stuck.
+
+<Gallery
+	cols={2}
+	items={[
+		{ src: '/writing/seek/try-1-overview.jpg', alt: 'A photo with a lettered grid drawn over it', caption: 'Try 1 (13:04, day one): one overview photo with a grid on top. Grok plans a route cell by cell, code checks it, the drone flies it.' },
+		{ src: '/writing/seek/try-2-recon.jpg', alt: 'A top-down grid map with free cells, obstacles and labelled objects', caption: 'Try 2 (14:05, day one): the drone spins in place, a depth model turns 8 photos into a floor map and Grok labels what is where.' },
+	]}
+/>
+
+1. **Plan from one photo.** Someone takes a photo of the area from a high spot, we draw a grid on it, Grok plans a route. It works on paper, but it plans blind: the photo is out of date the moment someone moves, and nobody wants to climb on a chair before every mission.
+2. **Map from a spin.** The drone turns 360° in one spot and photographs 8 directions. A depth model turns each photo into distances, and since the drone did not move, the photos can be placed by heading alone. Much better, but only for what you can see from one spot.
+3. **Proper 3D reconstruction.** Match features between frames, recover how the camera moved, triangulate the shared points into a coloured point cloud, the way photogrammetry tools do it. This was way too slow for a drone that is waiting for its next move, and drone footage is blurry and low on texture, so frames often do not share enough points to match at all.
+
+### What worked: depth on every frame
+
+Newer monocular depth models changed the plan. [Depth Anything V2](https://huggingface.co/depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf) (the small, indoor, *metric* version) looks at a single image and estimates how far away every pixel is, in metres. On a laptop GPU it does that in **0.16 s per frame** (measured on my MacBook), so the drone can map the room live while it flies.
+
+<Clip src="/writing/seek/depth" width={1600} height={680} wide label="Side by side: the drone's camera and the depth model's estimate for each frame.">
+	The drone turning in place 3 m above the hackathon room, and the depth model's estimate for each frame (brighter is closer). Blurry frames mid-turn come out muddy; the live mapper skips those. Same model and code the drone used.
+</Clip>
+
+Each frame, plus where the drone thinks it is, becomes a map in three steps:
+
+<ol class="steps">
+	<li>**Pixels to points.** Every pixel's depth, the camera's field of view and the drone's pose put that pixel somewhere in the room in 3D.</li>
+	<li>**Points to voxels.** Points land in 10 cm cubes that keep a hit count and an average colour. This is the 3D map in the dashboard.</li>
+	<li>**Voxels to a floor grid.** The room is cut into 50 cm floor cells: *free*, *obstacle* or *unknown*. A cell is an obstacle when something between 30 cm and 2 m off the floor was seen in it more often than the camera saw through it. Blurry frames are skipped, and only the newest frame is processed, so the map never falls behind.</li>
+</ol>
+
+That grid is the drone's memory, and it is what Grok reads: a picture of it, the same grid as text, and a list of every cell already visited and what was seen there.
+
+<Clip src="/writing/seek/mapgrow" width={1600} height={800} wide label="The map growing over the first 12 decisions of a real flight, next to the drone camera.">
+	The first 12 decisions of a real flight. Grey is never seen, red outlines are obstacles, the orange line is the path flown. The map Grok reads grows with every move.
+</Clip>
+
+## Pivot 2: from 47 seconds per decision to under 3
+
+The first time the full loop ran (in the simulator, inside a 360° photo of a hotel room), Grok took **47 seconds** to make one decision. And the decision was to give up:
+
+> The reachable room was fully scanned in the 360 spin with no television visible, and the only frontiers lie beyond obstacles, so nothing reachable remains to search.
+
+Both halves of that were a problem. A drone cannot hover for 47 seconds waiting to be told where to go, and a search agent that gives up after one look is not a search agent. Two changes fixed it:
+
+- **A fast, non-reasoning model.** Switching to `grok-4.20-0309-non-reasoning` brought decisions down to a few seconds. The thinking that matters here is spatial, and the map already does most of it; the model needs to read the map and pick, not deliberate.
+- **No way out.** The `give_up` action came out of the schema, and the prompt now says *"There is no giving up"*: if every reachable cell was visited, go to the edge of the unknown and look. `give_up` was chosen 3 times in the first two runs and never again.
+
+<LatencyChart>
+	Every Grok decision from the real flights. Most take 2 to 4 seconds; 8 of 186 took more than 10. The 47 s first decision is not shown: it was in the simulator, on the default reasoning model.
+</LatencyChart>
+
+## The loop: observe, think, check, act, verify
+
+Every move the drone makes goes through the same five steps. Grok is in exactly two of them.
+
+<ol class="steps">
+	<li>**Observe.** The live camera frame, the views from the last spin, the map as a picture and as text, and the memory of every visited cell.</li>
+	<li>**Think.** Grok answers with one action in a fixed JSON format: `goto <cell>`, `look <heading>`, `spin` or `found`, plus one sentence on why.</li>
+	<li>**Check.** Code turns a `goto` into a flight path over **known-free cells only**. Unknown space is never flown into. The path is flown in hops of at most 1 m, with a fresh depth check before each hop. Short hops, and cells already visited twice, are refused so Grok cannot pace back and forth.</li>
+	<li>**Act.** The drone flies the checked path, the map updates, and the loop repeats.</li>
+	<li>**Verify.** When Grok says `found`, a second, narrower Grok call looks only at the live camera and answers a yes/no question with a bounding box. Then a human confirms or rejects it. A rejection goes back into the memory and the search continues.</li>
+</ol>
+
+This is what Grok actually received on the decision that found the sign, as text next to three images (the map, the camera and the spin views):
+
+```text
+Map as text (. free, # obstacle, ? unknown, v visited, D drone):
+    A B C D E F G H I J K L M N O P Q
+  1 . . D . . . . . . . . . . . . ? ?
+  2 . . . v . . . . . . . . . . . . ?
+  3 . . . . v v . . . # . . . . . . .
+  4 . . . . . v v . . # # # . . . . .
+  5 . . # # # # v . . # # # . . . . .
+  ...
+Drone: cell C1, heading 270 (west), height 3.1 m. This is decision 2.
+Frontier (unknown cells next to free ones, where exploring pays off): P1, Q2, A9, A10, B11, ...
+Next scan corner: Q13
+```
+
+And what it answered, in 2.7 seconds:
+
+```json
+{
+  "seen": "white walls, windows, shelves with old computers and a neon 'coherency' sign",
+  "thought": "The coherency sign is clearly visible in the current camera view (image 2), right in the middle on a shelf.",
+  "action": "found",
+  "cell": "C1",
+  "heading": 270,
+  "evidence": "neon 'coherency' sign on shelf, visible in the middle-left of the image on a white shelving unit",
+  "found_in": "camera"
+}
+```
+
+The check step is what makes it safe to let a language model fly. Here is a harder mission, where it earned its keep: Grok proposes, code refuses or cuts moves short, and Grok adapts.
+
+<Clip src="/writing/seek/replay" width={1600} height={900} wide label="A full mission replayed decision by decision: camera, map, Grok's reasoning and what the safety check did with each move.">
+	A real mission, decision by decision: *"find the person wearing brown"*. Watch decision 2 (a find, rejected), the refusals on decisions 5 and 7 (*"Q1 is unknown, not free"*) and the hops cut short when the depth check sees something 0.8 m ahead.
+</Clip>
+
+## Did it work?
+
+Sometimes, and when it did it looked like magic. This is the best mission: the sign was across the room, out of sight from takeoff.
+
+<Clip src="/writing/seek/success" width={1600} height={900} wide label="The coherency sign mission: one move across the room, then the find.">
+	*"Find the coherency sign in the room. Explore the corners."* Decision 1: nothing in view, so fly to the far corner, C1. Decision 2: there it is. About two and a half minutes from takeoff to confirmed find.
+</Clip>
+
+Here is everything the drone reported as found on real flights, and what happened to it:
+
+<Gallery
+	wide
+	cols={4}
+	items={[
+		{ src: '/writing/seek/find-sign-1.jpg', alt: 'A neon coherency sign on a white shelf', caption: '“The coherency sign”: 2 decisions', verdict: 'confirmed' },
+		{ src: '/writing/seek/find-sign-2.jpg', alt: 'The coherency sign seen from another spot', caption: '“The coherency sign”, another run: 2 decisions', verdict: 'confirmed' },
+		{ src: '/writing/seek/find-robot.jpg', alt: 'A silver humanoid robot statue in the room', caption: '“The robot”: found on the first look', verdict: 'confirmed' },
+		{ src: '/writing/seek/find-cap.jpg', alt: 'People at a table, one in a black cap', caption: '“The person with the cap on”: 2 decisions', verdict: 'confirmed' },
+		{ src: '/writing/seek/find-brown.jpg', alt: 'A room with people, one in a brown shirt', caption: '“The person wearing brown”: 9 decisions, after one rejected guess', verdict: 'confirmed' },
+		{ src: '/writing/seek/miss-qr-tv.jpg', alt: 'A red box around a screen of QR codes', caption: 'Asked for the coherency sign, boxed a screen of QR codes labelled “Coherency”', verdict: 'rejected' },
+		{ src: '/writing/seek/miss-qr-projector.jpg', alt: 'A red box around a QR code on a projector screen', caption: 'Asked for the coherency sign, boxed a QR code on the projector', verdict: 'rejected' },
+		{ src: '/writing/seek/miss-poster.jpg', alt: 'A red box around a poster on a garage door', caption: 'Told only to “explore the room”, it still reported the poster as a find', verdict: 'rejected' },
+	]}
+/>
+
+The honest numbers, from the logs of every real flight:
+
+<div class="tablewrap">
+
+| Real flights, 4-5 November | Count |
+|---|---:|
+| Real missions where Grok made at least one decision | 33 |
+| ...of which had a target to find (the rest were "explore" runs or rover tests) | 26 |
+| Finds confirmed by a human | 5 |
+| Candidate finds checked by Grok's second look | 20 |
+| ...rejected by that second look | 7 |
+| ...passed the second look but rejected by a human | 8 |
+
+</div>
+
+Most missions did not end in a find; they ended when we pressed Stop to fix something, change the prompt or swap a battery. That is what a hackathon test log looks like, and it is why there is no success rate here. We never ran the planned comparison against a fixed lawnmower sweep, so I cannot tell you how much Grok's choices beat flying in rows.
+
+The failures are more interesting than the count. The second look checks whether **the image matches the words**, and the words were the weak point: the event's own QR screens literally said "Coherency", so a "coherency sign" check passed. The human confirmation step is not a formality. It is the part of the loop that knows what you meant.
+
+## What I'd do next
+
+- **Measure it.** Found-rate and time-to-find against a fixed sweep, on a fixed set of placed targets. The evaluation script exists; it never ran on real cases.
+- **Better pose.** The drone only knows where it was told to go, and every hop drifts a little. The depth model already sees the walls, so it could correct the drone's position instead of only mapping.
+- **One goal, many devices.** The rover and the drone each ran their own agent with their own goal. The next step is Grok splitting one mission across both and assigning areas.
+- **Ask better questions.** Verification should check the distinctive part of the description ("neon", "on a shelf") and reject look-alikes on purpose, instead of matching the label.
+
+## Credits
+
+Built in two days at the Grok Hackathon at the Museum (Ctrl+Alt Museum, Pavia, 4-5 November 2026) with Muhammad Abbasi, who connected the drones and built the rover bridge and its room mapping; Kamran Hasanli, who built the Skytrace website and demo dashboard; Fahad, who wrote the drone camera scripts; and Ayoud, who built the first dashboard. I built the agent loop, the live mapper, the safety checks and the operator app.
+
+Code: [github.com/eddii1/seek](https://github.com/eddii1/seek). Depth model: [Depth Anything V2](https://github.com/DepthAnything/Depth-Anything-V2) (Apache-2.0). Decisions, verification and voice: xAI's Grok API.

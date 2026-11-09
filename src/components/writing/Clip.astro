@@ -1,0 +1,79 @@
+---
+/**
+ * A looping, silent clip that behaves like a GIF but weighs a tenth as much.
+ * Expects <src>.webm, <src>.mp4 and <src>-poster.jpg next to each other under public/.
+ * Plays only while on screen; with reduced motion it stays paused and shows controls.
+ */
+interface Props {
+	/** Path without extension, e.g. "/writing/seek/replay". */
+	src: string;
+	/** Describes what the clip shows, for screen readers. */
+	label: string;
+	width: number;
+	height: number;
+	/** Let the clip run wider than the text column. */
+	wide?: boolean;
+}
+
+const { src, label, width, height, wide = false } = Astro.props;
+---
+
+<figure class:list={[{ bleed: wide }]}>
+	<video
+		data-clip
+		autoplay
+		muted
+		loop
+		playsinline
+		preload="metadata"
+		poster={`${src}-poster.jpg`}
+		width={width}
+		height={height}
+		aria-label={label}
+	>
+		<source src={`${src}.webm`} type="video/webm" />
+		<source src={`${src}.mp4`} type="video/mp4" />
+	</video>
+	{
+		Astro.slots.has('default') && (
+			<figcaption>
+				<slot />
+			</figcaption>
+		)
+	}
+</figure>
+
+<style>
+	video {
+		background: #f6f7fa;
+		aspect-ratio: auto;
+	}
+	.bleed {
+		--bleed: 1000px;
+	}
+</style>
+
+<script>
+	const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const clips = document.querySelectorAll<HTMLVideoElement>('video[data-clip]');
+	if (reduce) {
+		for (const v of clips) {
+			v.removeAttribute('autoplay');
+			v.pause();
+			v.controls = true;
+		}
+	} else {
+		// Only decode what is on screen.
+		const watch = new IntersectionObserver(
+			(entries) => {
+				for (const { target, isIntersecting } of entries) {
+					const v = target as HTMLVideoElement;
+					if (isIntersecting) v.play().catch(() => (v.controls = true));
+					else v.pause();
+				}
+			},
+			{ threshold: 0.25 },
+		);
+		for (const v of clips) watch.observe(v);
+	}
+</script>
