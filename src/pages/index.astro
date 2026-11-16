@@ -1,15 +1,13 @@
 ---
-import { type Project, SIDE_PROJECTS, SITE_DESCRIPTION, SITE_TITLE, SOCIAL_LINKS, WORK } from '../consts';
+import { NOW, PROJECTS, SITE_DESCRIPTION, SITE_TITLE, SOCIAL_LINKS, WORK } from '../consts';
+import AttentionBio from '../components/AttentionBio.astro';
 import Page from '../layouts/Page.astro';
 import { getPosts } from '../lib/posts';
 
 const posts = await getPosts();
-const sections: { heading: string; items: Project[] }[] = [
-	{ heading: "Things I've worked on", items: WORK },
-	{ heading: 'Side projects', items: SIDE_PROJECTS },
-];
 const monthYear = (date: Date) =>
 	date.toLocaleDateString('en-us', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+const updated = monthYear(new Date()); // the build date
 ---
 
 <Page title={SITE_TITLE} description={SITE_DESCRIPTION} bodyClass="home">
@@ -48,30 +46,57 @@ const monthYear = (date: Date) =>
 		</nav>
 	</header>
 
-	<p>
-		I'm an applied AI engineer at AINEXXO, a startup in Milan, working on RAG, document AI and agent systems.
-	</p>
-	<p>
-		Before that I was the first engineer at MidFlow AI in Bucharest: I built the product from the ground up and
-		shipped its AI systems to production, used by paying customers.
-	</p>
+	<!-- The bio text lives in src/data/bio.json; after editing it, run `python scripts/bio-attention.py`. -->
+	<AttentionBio />
 
 	{
-		sections
-			.filter((section) => section.items.length > 0)
-			.map((section) => (
-				<section>
-					<h2>{section.heading}</h2>
-					<ul>
-						{section.items.map((item) => (
-							<li>
-								<a href={item.href}>{item.title}</a> - {item.description}
-								{item.note && <small>{item.note}</small>}
-							</li>
-						))}
-					</ul>
-				</section>
-			))
+		NOW && (
+			<p class="now">
+				<span>Now</span>
+				{NOW}
+			</p>
+		)
+	}
+
+	{
+		PROJECTS.length > 0 && (
+			<section>
+				<h2>Projects</h2>
+				<ul>
+					{PROJECTS.map((project) => (
+						<li class="row">
+							<div class="line">
+								<a href={project.href}>{project.title}</a>
+								<span class="meta">{project.meta}</span>
+							</div>
+							<p class="desc">{project.description}</p>
+						</li>
+					))}
+				</ul>
+			</section>
+		)
+	}
+
+	{
+		WORK.length > 0 && (
+			<section>
+				<h2>Work</h2>
+				<ul>
+					{WORK.map((job) => (
+						<li class="row">
+							<div class="line">
+								<span>
+									{job.href ? <a href={job.href}>{job.org}</a> : <b>{job.org}</b>}
+									<span class="role"> · {job.role}</span>
+								</span>
+								<span class="meta">{job.dates}</span>
+							</div>
+							<p class="desc">{job.description}</p>
+						</li>
+					))}
+				</ul>
+			</section>
+		)
 	}
 
 	{
@@ -95,6 +120,8 @@ const monthYear = (date: Date) =>
 			</section>
 		)
 	}
+
+	<footer>Milan · updated {updated}</footer>
 </Page>
 
 <script>
@@ -214,9 +241,10 @@ const monthYear = (date: Date) =>
 		text-decoration: none;
 	}
 	h2 {
-		font: 400 13px/1.4 var(--sans);
-		color: var(--muted);
-		margin: 2.5rem 0 0.75rem;
+		font: 600 21px/1.3 var(--serif);
+		letter-spacing: -0.01em;
+		color: var(--fg);
+		margin: 3rem 0 1rem;
 	}
 	ul {
 		list-style: none;
@@ -226,22 +254,46 @@ const monthYear = (date: Date) =>
 	li {
 		margin-bottom: 0.5rem;
 	}
-	li small {
-		display: block;
-		margin-top: 0.2rem;
+	.now {
 		color: var(--muted);
-		font-size: 11.5px;
 	}
+	.now span {
+		margin-right: 0.5rem;
+		color: var(--fg);
+	}
+	.row {
+		margin-bottom: 0.9rem;
+	}
+	.line,
 	.post {
 		display: flex;
 		justify-content: space-between;
 		align-items: baseline;
 		gap: 1rem;
 	}
+	.line b {
+		font-weight: 400;
+		color: var(--fg);
+	}
+	.role {
+		color: var(--muted);
+	}
+	.desc {
+		margin: 0.1rem 0 0;
+		color: var(--muted);
+		font-size: 13.5px;
+		line-height: 1.5;
+	}
+	.meta,
 	.post time {
 		color: var(--muted);
 		font-size: 13px;
 		white-space: nowrap;
+	}
+	footer {
+		margin-top: 3.5rem;
+		color: var(--muted);
+		font-size: 12px;
 	}
 	.draft {
 		color: var(--muted);

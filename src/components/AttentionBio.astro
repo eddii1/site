@@ -1,0 +1,184 @@
+---
+/**
+ * The home page bio. Hover (or tap) a word to see where one real attention head of a language model
+ * looks from it. The weights are computed offline by scripts/bio-attention.py; nothing runs a model here.
+ */
+import bio from '../data/bio.json';
+import attention from '../data/bio-attention.json';
+
+const stale = bio.length !== attention.paragraphs.length || bio.some((text, i) => text !== attention.paragraphs[i].text);
+if (stale) {
+	throw new Error('src/data/bio.json changed: run `python scripts/bio-attention.py` to recompute the attention arcs.');
+}
+
+/** Each paragraph as text pieces and words; words with arcs carry them as data. */
+const paragraphs = attention.paragraphs.map((p) => {
+	const parts: { text: string; word?: number; arcs?: string }[] = [];
+	let at = 0;
+	p.words.forEach(([start, end], i) => {
+		if (start > at) parts.push({ text: p.text.slice(at, start) });
+		const arcs = p.arcs[i];
+		parts.push({ text: p.text.slice(start, end), word: i, arcs: arcs.length ? JSON.stringify(arcs) : undefined });
+		at = end;
+	});
+	if (at < p.text.length) parts.push({ text: p.text.slice(at) });
+	return parts;
+});
+const label = `${attention.model.split('/')[1]} · layer ${attention.layer} · head ${attention.head}`;
+---
+
+<div class="bio">
+	{
+		paragraphs.map((parts) => (
+			<p>
+				{parts.map((part) =>
+					part.word === undefined ? (
+						part.text
+					) : (
+						<span class:list={{ w: part.arcs }} data-w={part.word} data-arcs={part.arcs}>
+							{part.text}
+						</span>
+					),
+				)}
+			</p>
+		))
+	}
+	<svg class="arcs" aria-hidden="true"></svg>
+	<p class="label" aria-hidden="true">attention from <b></b> · {label}</p>
+</div>
+
+<script>
+	const SVG = 'http://www.w3.org/2000/svg';
+	for (const bio of document.querySelectorAll<HTMLElement>('.bio')) {
+		const svg = bio.querySelector<SVGSVGElement>('.arcs')!;
+		const label = bio.querySelector<HTMLElement>('.label b')!;
+		let active: HTMLElement | null = null;
+
+		const clear = () => {
+			active = null;
+			svg.replaceChildren();
+			bio.classList.remove('on');
+			bio.querySelectorAll('.hit, .src').forEach((el) => el.classList.remove('hit', 'src'));
+		};
+
+		const show = (word: HTMLElement) => {
+			clear();
+			active = word;
+			const box = bio.getBoundingClientRect();
+			const from = word.getBoundingClientRect();
+			// Arc targets are indices into this paragraph's words.
+			const list = word.parentElement!.querySelectorAll<HTMLElement>('[data-w]');
+			const arcs: [number, number][] = JSON.parse(word.dataset.arcs!);
+			word.classList.add('src');
+			label.textContent = word.textContent;
+			bio.classList.add('on');
+			for (const [j, share] of arcs) {
+				const to = list[j];
+				if (!to) continue;
+				to.classList.add('hit');
+				to.style.setProperty('--share', String(share));
+				const r = to.getBoundingClientRect();
+				const x1 = from.left + from.width / 2 - box.left;
+				const y1 = from.top - box.top + 2;
+				const x2 = r.left + r.width / 2 - box.left;
+				const y2 = r.top - box.top + 2;
+				const lift = Math.min(46, 14 + Math.abs(x2 - x1) * 0.18);
+				const path = document.createElementNS(SVG, 'path');
+				path.setAttribute('d', `M${x1},${y1} C${x1},${Math.min(y1, y2) - lift} ${x2},${Math.min(y1, y2) - lift} ${x2},${y2}`);
+				path.style.setProperty('--share', String(share));
+				svg.append(path);
+			}
+		};
+
+		bio.addEventListener('pointerover', (e) => {
+			const w = (e.target as HTMLElement).closest<HTMLElement>('.w');
+			if (w && w !== active && e.pointerType === 'mouse') show(w);
+		});
+		bio.addEventListener('pointerleave', (e) => {
+			if (e.pointerType === 'mouse') clear();
+		});
+		// Touch: tap a word to show, tap it again or anywhere else to hide.
+		document.addEventListener('click', (e) => {
+			const w = (e.target as HTMLElement).closest<HTMLElement>('.bio .w');
+			if (w && bio.contains(w) && w !== active) show(w);
+			else if (active) clear();
+		});
+		addEventListener('resize', () => active && show(active));
+	}
+</script>
+
+<style>
+	.bio {
+		position: relative;
+		margin-bottom: 1.5rem;
+	}
+	.bio p {
+		margin: 0 0 1.5rem;
+		font-size: 18px; /* 20% over the page's 15px */
+	}
+	.bio p:nth-last-child(3) {
+		margin-bottom: 0; /* the last paragraph; the svg and label follow it */
+	}
+	.w {
+		cursor: default;
+		transition: color 0.15s;
+	}
+	.bio p:not(.label) {
+		transition: color 0.15s;
+	}
+	.on p:not(.label) {
+		color: var(--muted);
+	}
+	.src {
+		color: var(--fg);
+	}
+	.hit {
+		color: var(--fg);
+		text-decoration: underline;
+		text-decoration-color: color-mix(in srgb, var(--fg) calc(25% + var(--share) * 75%), transparent);
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
+	}
+	.arcs {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		overflow: visible;
+		pointer-events: none;
+	}
+	.arcs :global(path) {
+		fill: none;
+		stroke: var(--fg);
+		stroke-linecap: round;
+		stroke-width: calc(0.75px + var(--share) * 1.75px);
+		opacity: calc(0.25 + var(--share) * 0.6);
+		animation: draw 0.35s ease-out;
+	}
+	@keyframes draw {
+		from {
+			opacity: 0;
+		}
+	}
+	.bio .label {
+		position: absolute;
+		top: calc(100% + 0.4rem);
+		margin: 0;
+		font: 400 11.5px/1.4 var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+		color: var(--muted);
+		opacity: 0;
+		transition: opacity 0.2s;
+	}
+	.label b {
+		font-weight: 400;
+		color: var(--fg);
+	}
+	.on .label {
+		opacity: 1;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.arcs :global(path) {
+			animation: none;
+		}
+	}
+</style>

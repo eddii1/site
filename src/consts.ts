@@ -17,18 +17,53 @@ export interface Link {
 	href: string;
 }
 
+/** One line under the bio: what you are working on right now. Empty hides it. */
+export const NOW = 'measuring whether a LoRA backdoor in a small open model survives normal evals, and what catches it.';
+
 export interface Project {
 	title: string;
 	href: string;
-	/** One line, shown after the title. */
+	/** One line with the result, shown under the title. */
 	description: string;
-	/** Optional small print under the item, e.g. data sources or credits. */
-	note?: string;
+	/** Short context on the right, e.g. the year or the event. */
+	meta: string;
 }
 
 /**
- * Home page lists. A section only shows once it has at least one entry. Example:
- * { title: 'Drone search', href: '/writing/drone-search-grok-hackathon/', description: 'a toy drone that finds objects on its own' }
+ * Empty hides the section. Drafted entries, to put back later:
+ * { title: 'Teaching a toy drone to scan rooms on its own', href: '/writing/seek/', meta: 'Grok Hackathon, 2026',
+ *   description: 'Grok flies a €279 drone from one sentence; a depth map keeps it safe. 5 confirmed finds in real flights.' }
+ * { title: 'Grading its own exam', href: 'https://github.com/eddii1/epistemics-sprint', meta: 'Apart Research, 2026',
+ *   description: "One line in a chatbot's reply erases DarkBench's flags on six LLM graders; a second question to the grader restores them." }
  */
-export const WORK: Project[] = [];
-export const SIDE_PROJECTS: Project[] = [];
+export const PROJECTS: Project[] = [];
+
+export interface Role {
+	org: string;
+	role: string;
+	dates: string;
+	/** What you did there, one line. */
+	description: string;
+	href?: string;
+}
+
+export const WORK: Role[] = [
+	{
+		org: 'AINEXXO',
+		role: 'AI engineer, Milan',
+		dates: '2026 - now',
+		description: 'Document extraction and evaluation for RAG and agent systems.',
+	},
+	{
+		org: 'FOREO',
+		role: 'AI engineer intern',
+		dates: '2026',
+		description: 'Multimodal defect extraction with LangGraph, with cost-aware model routing.',
+	},
+	{
+		org: 'MidFlow AI',
+		role: 'Founding AI engineer, Bucharest',
+		dates: '2025 - 2026',
+		description: 'Built the product from zero: document extraction, an LLM eval harness and the platform around them.',
+	},
+];
