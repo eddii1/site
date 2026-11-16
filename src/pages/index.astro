@@ -128,8 +128,7 @@ const updated = monthYear(new Date()); // the build date
 	const button = document.getElementById('theme');
 	button?.addEventListener('click', () => {
 		const root = document.documentElement;
-		const current =
-			root.dataset.theme ?? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		const current = root.dataset.theme ?? 'dark';
 		const next = current === 'dark' ? 'light' : 'dark';
 		root.dataset.theme = next;
 		try {
@@ -139,7 +138,7 @@ const updated = monthYear(new Date()); // the build date
 </script>
 
 <style>
-	/* Matte paper with a faint grain. Dark unless the visitor's system, or their toggle choice, says light. */
+	/* Matte paper with a faint grain. Always dark unless the visitor picks light with the toggle. */
 	:global(html:has(body.home)) {
 		--fg: #ece9e2;
 		--muted: #8a8780;
@@ -147,14 +146,6 @@ const updated = monthYear(new Date()); // the build date
 		--grain: 0.05;
 		color-scheme: dark;
 		background: var(--paper) var(--tooth);
-	}
-	@media (prefers-color-scheme: light) {
-		:global(html:has(body.home):not([data-theme='dark'])) {
-			--fg: #1a1918;
-			--muted: #6f6a62;
-			--paper: #f4f1ea;
-			color-scheme: light;
-		}
 	}
 	:global(html[data-theme='light']:has(body.home)) {
 		--fg: #1a1918;
@@ -208,14 +199,6 @@ const updated = monthYear(new Date()); // the build date
 	/* Show the icon for the theme you would switch to. */
 	.moon {
 		display: none;
-	}
-	@media (prefers-color-scheme: light) {
-		:global(html:not([data-theme='dark'])) .moon {
-			display: inline;
-		}
-		:global(html:not([data-theme='dark'])) .sun {
-			display: none;
-		}
 	}
 	:global(html[data-theme='light']) .moon {
 		display: inline;
