@@ -29,7 +29,7 @@ export const S = {
 	<span class="label">TL;DR</span>
 	- Safety benchmarks increasingly use an LLM as the grader, and the **text being graded is written by the model being graded**. I tested whether that text can talk the grader out of its verdict, on DarkBench's own grader prompt and score rule.
 	- It can. A note saying the reply **"was a discarded draft that was never shown to the user"** takes flagged replies on DarkBench's default grader from **89 of 110 to 3**. Six graders from three vendors lose 99-100% of their flags. Across the full benchmark (660 prompts): **377 flags, 2 left**.
-	- It is a claim, not a formatting trick. **In plain prose, with nothing forged**, it still clears every flag on two small graders. The fix Inspect shipped this month for forged markers **holds fully on 1 grader of 6**.
+	- It is a claim, not a formatting trick. **In plain prose, with nothing forged**, it still clears every flag on two small graders. The fix Inspect shipped this month for forged markers, ported into DarkBench's prompt, **holds fully on 1 grader of 6**.
 	- What closes it on the default grader sits outside the grader prompt: a **score rule that never counts "invalid" as clean**, and **a second question: is this reply talking to you?** An attacker who knows about that question still gets through on **20-27%** of replies, so it is a mitigation, not a fix.
 </div>
 
@@ -144,6 +144,8 @@ Two weeks before this work, Matt Fisher [showed](https://eval-experiments.genera
 >
 	With no suffix, the fix keeps 92-100% of baseline flags on every grader, so it does not break normal grading. It just does not stop this attack on most graders.
 </FlagBars>
+
+Fisher's own follow-up (his run A5, seven judges) already found that the fix leaves small judges partly open: on gpt-4o-mini, about 12% of his attacks still worked. Against the draft claim the gap is much larger: gpt-4o-mini keeps 5 of its 89 flags.
 
 The same prompt text that fully protects Gemini 3.8 Flash leaves Flash-Lite fully exposed. **The fix is a property of the grader, not of the prompt.** A benchmark that ships the fix with a cheap default grader has not shipped the fix.
 
@@ -261,6 +263,6 @@ I also ran the draft claim on other benchmarks from the census. Those results go
 
 ## Notes
 
-This builds directly on Matt Fisher's [grader prompt structure](https://eval-experiments.generality.org/experiments/grader-prompt-structure/report.html) experiments and the Inspect [issue](https://github.com/UKGovernmentBEIS/inspect_ai/issues/6277) and [fix](https://github.com/UKGovernmentBEIS/inspect_ai/pull/6282) that followed. What is new here: a deployed safety benchmark's own grader, an attack that is a claim rather than a forged marker, the fix tested on six graders, the score rule as a second channel, and a defence that does not depend on the grader resisting the claim.
+This builds directly on Matt Fisher's [grader prompt structure](https://eval-experiments.generality.org/experiments/grader-prompt-structure/report.html) experiments and the Inspect [issue](https://github.com/UKGovernmentBEIS/inspect_ai/issues/6277) and [fix](https://github.com/UKGovernmentBEIS/inspect_ai/pull/6282) that followed. The forged-marker version of the attack is his technique, pointed at a new target. What is new here: a deployed safety benchmark's own grader and score rule, an attack that is a claim rather than a forged marker (none of his twelve attacks claims the reply was never shown), the fix tested against an attack it was not built for, the score rule as a second channel, and a defence that does not depend on the grader resisting the claim, tested against an adaptive attacker.
 
 The work started at Apart Research's AI x Epistemics sprint (13-15 November 2026). The sprint report, every suffix text, the code, cached model calls and per-run tables for it are at [github.com/eddii1/epistemics-sprint](https://github.com/eddii1/epistemics-sprint). The full-benchmark run and the adaptive attacker came after the sprint and are not in the repository yet. DarkBench's prompts are MIT-licensed. I used Claude Code throughout; I chose the experiments, approved each run, and recomputed every number in this post from the result files.
