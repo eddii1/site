@@ -1,0 +1,198 @@
+---
+/**
+ * "Flags left" bars: for each row (a grader, a pattern...), one thin bar per series showing how many of the
+ * row's baseline flags survive. Values are counts out of the row's n, so every bar reads "k of n".
+ */
+interface Series {
+	key: string;
+	label: string;
+	/** CSS colour for the bar and the legend swatch. */
+	color: string;
+}
+interface Row {
+	label: string;
+	note?: string;
+	n: number;
+	/** Count per series key. A missing key is drawn as "not run". */
+	v: Record<string, number | undefined>;
+}
+interface Props {
+	title: string;
+	sub?: string;
+	series: Series[];
+	rows: Row[];
+}
+
+const { title, sub, series, rows } = Astro.props;
+const pct = (k: number, n: number) => Math.round((100 * k) / n);
+---
+
+<figure class="flagbars">
+	<div class="head">
+		<span class="title">{title}{sub && <span class="sub"> {sub}</span>}</span>
+		<ul class="legend" hidden={series.length < 2}>
+			{
+				series.map((s) => (
+					<li>
+						<i style={`background:${s.color}`} />
+						{s.label}
+					</li>
+				))
+			}
+		</ul>
+	</div>
+	{
+		rows.map((r) => (
+			<div class="row">
+				<div class="name">
+					<b>{r.label}</b>
+					{r.note && <span>{r.note}</span>}
+				</div>
+				<div class="bars">
+					{series.map((s) => {
+						const k = r.v[s.key];
+						return k === undefined ? (
+							<div class="bar">
+								<div class="track" />
+								<span class="val na">not run</span>
+							</div>
+						) : (
+							<div class="bar" title={`${s.label}: ${k} of ${r.n} flags left (${pct(k, r.n)}%)`}>
+								<div class="track">
+									{k > 0 && <div class="fill" style={`width:${(100 * k) / r.n}%;background:${s.color}`} />}
+								</div>
+								<span class="val">
+									{k}
+									<small>/{r.n}</small>
+								</span>
+							</div>
+						);
+					})}
+				</div>
+			</div>
+		))
+	}
+	<figcaption><slot /></figcaption>
+</figure>
+
+<style>
+	.flagbars {
+		margin: 30px 0 34px;
+		padding: 18px 20px 4px;
+		border: 1px solid var(--rule);
+		border-radius: 14px;
+		background: #fff;
+		font-family: var(--sans);
+	}
+	.head {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: 8px 20px;
+		padding-bottom: 12px;
+		border-bottom: 1px solid var(--rule);
+	}
+	.title {
+		font: 600 14.5px/1.35 var(--sans);
+		color: var(--ink);
+	}
+	.sub {
+		font-weight: 400;
+		color: var(--muted);
+	}
+	.legend {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 14px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		font: 400 12.5px/1.3 var(--sans);
+		color: var(--muted);
+	}
+	.legend li {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		margin: 0;
+	}
+	.legend i {
+		width: 10px;
+		height: 10px;
+		border-radius: 3px;
+	}
+	.row {
+		display: grid;
+		grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr);
+		gap: 6px 22px;
+		align-items: center;
+		padding: 12px 0;
+	}
+	.row + .row {
+		border-top: 1px solid var(--rule);
+	}
+	.name {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+	.name b {
+		font: 600 14px/1.3 var(--sans);
+		color: var(--ink);
+	}
+	.name span {
+		font: 400 12.5px/1.35 var(--sans);
+		color: var(--muted);
+	}
+	.bars {
+		display: flex;
+		flex-direction: column;
+		gap: 5px;
+	}
+	.bar {
+		display: grid;
+		grid-template-columns: 1fr 58px;
+		align-items: center;
+		gap: 10px;
+	}
+	.track {
+		height: 9px;
+		border-radius: 5px;
+		background: var(--panel);
+		overflow: hidden;
+	}
+	.fill {
+		height: 100%;
+		min-width: 3px;
+		border-radius: 5px;
+	}
+	.val {
+		font: 600 13px/1 var(--sans);
+		color: var(--ink);
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+	.val small {
+		font-weight: 400;
+		font-size: 11.5px;
+		color: var(--faint);
+	}
+	.val.na {
+		font: 400 11.5px/1 var(--sans);
+		color: var(--faint);
+	}
+	figcaption {
+		padding: 10px 0 12px;
+		border-top: 1px solid var(--rule);
+		margin: 0;
+	}
+	@media (max-width: 600px) {
+		.flagbars {
+			padding: 14px 14px 2px;
+		}
+		.row {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

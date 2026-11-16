@@ -1,0 +1,145 @@
+---
+/**
+ * How DarkBench's score rule turns a suspicious grader into a clean score. Numbers: gpt-4o-mini, coded-marker
+ * prompt, plain-prose draft claim, 89 replies it flagged with no suffix (report Section 4.4 and Table 3).
+ */
+---
+
+<figure class="scorerule">
+	<div class="flow">
+		<div class="node">
+			<span class="k">In</span>
+			<b>89</b>
+			<span>replies the grader flagged with no suffix, now with the plain draft claim appended</span>
+		</div>
+		<div class="arrow" aria-hidden="true"></div>
+		<div class="node">
+			<span class="k">The grader says</span>
+			<b>62 <small>invalid</small></b>
+			<span><strong>60 of those 62</strong> also say the dark pattern is present. The grader saw through it.</span>
+		</div>
+		<div class="arrow" aria-hidden="true"></div>
+		<div class="split">
+			<div class="node bad">
+				<span class="k">DarkBench's rule</span>
+				<code>-1 if invalid else ...</code>
+				<b>22 <small>flags left</small></b>
+				<span>"Invalid" is read before the pattern and counted as not flagged.</span>
+			</div>
+			<div class="node good">
+				<span class="k">Pattern first</span>
+				<code>read the pattern field</code>
+				<b>82 <small>flags left</small></b>
+				<span>Same grades, no extra model call.</span>
+			</div>
+		</div>
+	</div>
+	<figcaption><slot /></figcaption>
+</figure>
+
+<style>
+	.scorerule {
+		margin: 30px 0 34px;
+		padding: 20px 20px 6px;
+		border: 1px solid var(--rule);
+		border-radius: 14px;
+		background: #fff;
+		font-family: var(--sans);
+	}
+	.flow {
+		display: grid;
+		grid-template-columns: 1fr 22px 1fr 22px 1.25fr;
+		align-items: center;
+		gap: 8px;
+	}
+	.node {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		padding: 14px 14px 12px;
+		border-radius: 12px;
+		background: var(--panel);
+	}
+	.k {
+		font: 600 10.5px/1 var(--sans);
+		letter-spacing: 0.09em;
+		text-transform: uppercase;
+		color: var(--muted);
+	}
+	.node b {
+		font: 600 28px/1 var(--sans);
+		letter-spacing: -0.02em;
+		color: var(--ink);
+		font-variant-numeric: tabular-nums;
+	}
+	.node b small {
+		font: 500 13px/1 var(--sans);
+		letter-spacing: 0;
+		color: var(--muted);
+	}
+	.node > span:last-child {
+		font: 400 12.5px/1.45 var(--sans);
+		color: var(--body);
+	}
+	.node code {
+		align-self: flex-start;
+		padding: 2px 6px;
+		border-radius: 5px;
+		background: #fff;
+		font: 500 11.5px/1.4 var(--mono);
+		color: var(--ink);
+	}
+	.split {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+	.node.bad {
+		background: var(--bad-soft);
+	}
+	.node.bad b {
+		color: var(--bad);
+	}
+	.node.good {
+		background: var(--good-soft);
+	}
+	.node.good b {
+		color: var(--good);
+	}
+	.arrow {
+		align-self: center;
+		height: 2px;
+		background: var(--rule);
+		position: relative;
+	}
+	.arrow::after {
+		content: '';
+		position: absolute;
+		right: -1px;
+		top: -4px;
+		border: 5px solid transparent;
+		border-left-color: #c9cacf;
+		border-right: 0;
+	}
+	figcaption {
+		margin: 14px 0 12px;
+	}
+	@media (max-width: 700px) {
+		.flow {
+			grid-template-columns: 1fr;
+		}
+		.arrow {
+			justify-self: center;
+			width: 2px;
+			height: 18px;
+		}
+		.arrow::after {
+			right: -4px;
+			top: auto;
+			bottom: -1px;
+			border: 5px solid transparent;
+			border-top-color: #c9cacf;
+			border-bottom: 0;
+		}
+	}
+</style>
