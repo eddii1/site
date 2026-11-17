@@ -1,0 +1,47 @@
+---
+import { GOATCOUNTER } from '../consts';
+
+/*
+  Counts this page view with GoatCounter and shows the page's total views.
+  The count arrives after load, so the line stays hidden until it does; it stays hidden for good
+  when the page has no views yet (404), the counter is off, or the request fails.
+  GoatCounter ignores localhost, so dev visits are never counted.
+*/
+
+// Same path as the canonical link, which is what count.js records the view under.
+const path = new URL(Astro.url.pathname, Astro.site).pathname;
+---
+
+<!-- Pinned v5, served from this site: https://www.goatcounter.com/help/countjs-versions -->
+<script
+	is:inline
+	async
+	src="/goatcounter.v5.js"
+	data-goatcounter={`${GOATCOUNTER}/count`}
+	integrity="sha384-atnOLvQb9t+jTSipvd75X2yginT4PjVbqDdlJAmxMm+wYElFmeR6EmLP5bYeoRVQ"></script>
+
+<p class="views" data-src={`${GOATCOUNTER}/counter/${encodeURIComponent(path)}.json`} hidden></p>
+
+<script>
+	const el = document.querySelector<HTMLElement>('.views');
+	if (el?.dataset.src) {
+		fetch(el.dataset.src)
+			.then((res) => (res.ok ? res.json() : null))
+			.then((data: { count?: string } | null) => {
+				// `count` is a string formatted with the site's own separator ("1,234" or "1 234").
+				const n = Number(data?.count?.replace(/\D/g, ''));
+				if (!n) return;
+				el.textContent = `${n.toLocaleString('en')} ${n === 1 ? 'view' : 'views'}`;
+				el.hidden = false;
+			})
+			.catch(() => {});
+	}
+</script>
+
+<style>
+	.views {
+		margin: 56px 0 0;
+		font: 400 13px/1 var(--sans);
+		color: var(--faint);
+	}
+</style>

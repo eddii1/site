@@ -2,6 +2,7 @@
 import { Image } from 'astro:assets';
 import type { CollectionEntry } from 'astro:content';
 import FormattedDate from '../components/FormattedDate.astro';
+import ViewCount from '../components/ViewCount.astro';
 import { SITE_TITLE } from '../consts';
 import Page from './Page.astro';
 
@@ -51,6 +52,7 @@ const { title, description, pubDate, updatedDate, heroImage, wip, draft, meta } 
 			)
 		}
 		<slot />
+		<ViewCount />
 	</article>
 </Page>
 

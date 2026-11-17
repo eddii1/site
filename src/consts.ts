@@ -67,3 +67,9 @@ export const WORK: Role[] = [
 		description: 'Built the product from zero: document extraction, an LLM eval harness and the platform around them.',
 	},
 ];
+
+/**
+ * GoatCounter site that counts post views (goatcounter.com, no cookies). Its settings must have
+ * "Allow adding visitor counts on your website" on, or the count under each post stays hidden.
+ */
+export const GOATCOUNTER = 'https://eddii1.goatcounter.com';
