@@ -34,6 +34,19 @@ const { title, description, image } = Astro.props;
 />
 <meta name="generator" content={Astro.generator} />
 
+<!-- Cloudflare Web Analytics, site-wide, built pages only so dev visits are never counted.
+     The site is on GitHub Pages, not behind Cloudflare, so the beacon has to be added by hand. -->
+{
+	import.meta.env.PROD && (
+		<script
+			is:inline
+			type="module"
+			src="https://static.cloudflareinsights.com/beacon.min.js"
+			data-cf-beacon='{"token": "37e49ccf037a4bb1b44faa975f114df1"}'
+		/>
+	)
+}
+
 <!-- Preload only the body text face; headings and labels load right after. -->
 <Font cssVariable="--font-serif" preload={[{ weight: 400, style: 'normal', subset: 'latin' }]} />
 <Font cssVariable="--font-sans" />

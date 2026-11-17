@@ -16,17 +16,16 @@ Personal site and blog, built with [Astro](https://docs.astro.build).
 
 | Path                        | What                                                   |
 | --------------------------- | ------------------------------------------------------ |
-| `src/pages/index.astro`     | Home page: intro and recent posts                      |
-| `src/pages/about.astro`     | About me                                               |
-| `src/pages/blog/`           | Blog index and post pages                              |
-| `src/content/blog/`         | Posts as Markdown/MDX. `draft: true` keeps one private |
+| `src/pages/index.astro`     | Home page: bio, work and recent posts                  |
+| `src/pages/writing/`        | Writing index and post pages                           |
+| `src/content/writing/`      | Posts as Markdown/MDX. `draft: true` keeps one private |
 | `src/layouts/Page.astro`    | Shared shell: head, header, main, footer               |
 | `src/consts.ts`             | Site title, description, social links                  |
 | `src/styles/global.css`     | Global styles and color tokens                         |
 
 ## Writing a post
 
-Add `src/content/blog/<slug>.md` with this frontmatter:
+Add `src/content/writing/<slug>.md` with this frontmatter:
 
 ```yaml
 ---
@@ -39,4 +38,10 @@ draft: true # remove to publish
 
 ## Deploy
 
-Cloudflare Workers (static assets), connected to this GitHub repo: every push to `main` deploys.
+GitHub Pages, through `.github/workflows/deploy.yml`: every push to `main` builds and deploys.
+
+## Analytics
+
+- Cloudflare Web Analytics: site-wide, script in `src/components/BaseHead.astro` (built pages only).
+- GoatCounter (`eddii1`): counts post views and powers the view count at the end of each post
+  (`src/components/ViewCount.astro`).
